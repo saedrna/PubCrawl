@@ -431,6 +431,118 @@ def parse_wiley(link: str, driver: webdriver.Edge) -> dict:
 
 
 
+def parse_wos(link: str, driver: webdriver.Edge) -> dict:
+    """
+    parse the elsevier page
+
+    Args:
+        link (str): the url of the page
+        driver (webdriver.Edge): the web driver
+
+    Returns:
+        dict: the data    
+    """
+    # initialize the data
+    data = {'title': '',
+            'first author': '',
+            'corr author': '',
+            'inst1': '',
+            'inst2': '',
+            'inst3': '',
+            'inst4': '',
+            'inst5': '',
+            'kw1': '',
+            'kw2': '',
+            'kw3': '',
+            'kw4': '',
+            'kw5': ''
+            }
+
+    # probably not from the corresponding journal
+    if "WOS" not in link:
+        return data
+
+    link.strip()
+    # format the link
+    link = 'https://www.webofscience.com/wos/alldb/full-record/' + link
+
+    driver.implicitly_wait(10)
+    driver.get(link)
+    driver.find_element('id', 'FullRTa-fullRecordtitle-0')
+
+    # time.sleep(1)
+
+    # get the page sources
+    article_soup = BeautifulSoup(driver.page_source, "html.parser")
+
+    # get the title
+    title = article_soup.find('h2', {'class': 'title text--large'})
+    if title is not None:
+        title = title.text
+
+    def format_comma_author_name(author_name: str) -> str:
+        if not author_name:
+            return ''
+        # split with comma
+        author_name = author_name.split(',')
+        # capitalize the first letter
+        author_name = author_name[0].upper() + ',' + author_name[1]
+        return author_name
+
+    author = article_soup.find('span', {'id': 'SumAuthTa-FrAuthStandard-author-en-0'})
+    first_author = author.find('span', {'class': 'font-size-14 value'})
+    if first_author is not None:
+        first_author = format_comma_author_name(first_author.text)
+
+    author = article_soup.find('div', {'id': 'FRAiinTa-RepAddrTitle-0'})
+    corresponding_author = author.find('span', {'class': 'value'})
+    if corresponding_author is not None:
+        corresponding_author = format_comma_author_name(corresponding_author.text)
+    
+    # processing affiliations from author info
+    affiliations = []
+    authors_infos = article_soup.find_all('app-full-record-author-organization')
+    for author_info in authors_infos:
+        value = author_info.find('span', {'class': 'value'})
+        if value is not None:
+            affiliations.append(value.text)      
+
+    if len(affiliations) > 5:
+        affiliations = affiliations[:5]
+    else:
+        affiliations += [''] * (5 - len(affiliations))
+
+    # keywords
+    kws = []
+    for i in range(5):
+        keyword = article_soup.find('a', {'id': f'FRkeywordsTa-keyWordsPlusLink-{i}'})
+        if keyword is not None:
+            keyword = keyword.find('span')
+            if keyword is not None:
+                kws.append(keyword.text)
+    # 5 keywords
+    if len(kws) > 5:
+        kws = kws[:5]
+    else:
+        kws += [''] * (5 - len(kws))
+   
+
+    # fill the data
+    data['title'] = title if title is not None else ''
+    data['first author'] = first_author if first_author is not None else ''
+    data['corr author'] = corresponding_author if corresponding_author is not None else ''
+    data['inst1'] = affiliations[0]
+    data['inst2'] = affiliations[1]
+    data['inst3'] = affiliations[2]
+    data['inst4'] = affiliations[3]
+    data['inst5'] = affiliations[4]
+    data['kw1'] = kws[0]
+    data['kw2'] = kws[1]
+    data['kw3'] = kws[2]
+    data['kw4'] = kws[3]
+    data['kw5'] = kws[4]
+    return data
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -540,8 +652,9 @@ def main():
         with open(link_file, 'r') as f:
             for link in f.readlines():
                 link = link.strip()
-                # remove ""
-                link = link[1:-1]
+                if link.startswith('"'):
+                    # remove ""
+                    link = link[1:-1]
                 try:
                     if publisher == 'elsevier':
                         data = parse_elsevier(link, driver)
@@ -549,8 +662,10 @@ def main():
                         data = parse_springer(link, driver)
                     elif publisher == 'wiley':
                         data = parse_wiley(link, driver)
-                    else:
+                    elif publisher == 'taylor':
                         data = parse_taylor(link, driver)
+                    else:
+                        data = parse_wos(link, driver)
 
                     if data['title'] == '':
                         continue

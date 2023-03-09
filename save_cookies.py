@@ -7,9 +7,12 @@ import pickle
 import os
 import argparse
 
+# os.environ['HTTP_PROXY']='http://127.0.0.1:10809'
+# os.environ['HTTPS_PROXY']='http://127.0.0.1:10809'
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--url', type=str, help='the url of the page')
+    parser.add_argument('--url', type=str, help='the url of the page', default='https://www.webofscience.com/')
     args = parser.parse_args()
 
     url = args.url
