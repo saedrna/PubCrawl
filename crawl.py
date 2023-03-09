@@ -260,6 +260,73 @@ def parse_elsevier(link: str, driver: webdriver.Edge) -> dict:
 
 
 def parse_springer(url: str, driver: webdriver.Edge) -> dict:
+    # initialize the data
+    data = {'title': '',
+            'first author': '',
+            'corr author': '',
+            'inst1': '',
+            'inst2': '',
+            'inst3': '',
+            'inst4': '',
+            'inst5': '',
+            'kw1': '',
+            'kw2': '',
+            'kw3': '',
+            'kw4': '',
+            'kw5': ''
+            }
+
+    # probably not from the corresponding journal
+    if not url.startswith("https://link.springer.com/article/"):
+        return data
+
+    driver.get(url)
+    time.sleep(0.5)
+    article_soup = BeautifulSoup(driver.page_source, "html.parser")
+    title = article_soup.find('h1', {'class': 'c-article-title'}).text
+    affiliations = []
+    for affiliation in article_soup.find_all("p", class_="c-article-author-affiliation__address"):
+        affiliations.append(affiliation.text)
+    if len(affiliations) > 5:
+            affiliations = affiliations[:5]
+    else:
+        affiliations += [''] * (5 - len(affiliations))
+
+    # Get the author name and corr name
+    first_author_text= article_soup.find('a', {'data-test': 'author-name'}).text
+    
+
+    first_author = format_author_name(first_author_text)
+    
+    corresp_c1 = article_soup.find('a', {'id': 'corresp-c1'})
+    if corresp_c1 is not None:
+        corresponding_author_text = corresp_c1.text
+        corresponding_author = format_author_name(corresponding_author_text)
+    else:
+        corresponding_author = "None"
+    keywords = []
+    for li_element in article_soup.find_all("li", class_="c-article-subject-list__subject"):
+        keyword=li_element.find('span')
+        keywords.append(keyword.text)
+    if len(keywords) > 5:
+        keywords = keywords[:5]
+    else:
+        keywords += [''] * (5 - len(keywords))
+    # fill the data
+    data['title'] = title
+    data['first author'] = first_author
+    data['corr author'] = corresponding_author
+    data['inst1'] = affiliations[0]
+    data['inst2'] = affiliations[1]
+    data['inst3'] = affiliations[2]
+    data['inst4'] = affiliations[3]
+    data['inst5'] = affiliations[4]
+    data['kw1'] = keywords[0]
+    data['kw2'] = keywords[1]
+    data['kw3'] = keywords[2]
+    data['kw4'] = keywords[3]
+    data['kw5'] = keywords[4]
+    return data
 
     pass
 
@@ -307,7 +374,7 @@ def main():
     start = 0
 
     # data for the table
-    columns = ['title', 'authors', 'comm_author', 'inst1', 'inst2',
+    columns = ['title', 'first author', 'corr author', 'inst1', 'inst2',
                'inst3', 'inst4', 'inst5', 'kw1', 'kw2', 'kw3', 'kw4', 'kw5']
     df = pd.DataFrame(columns=columns)
 
@@ -343,16 +410,15 @@ def main():
                     data = parse_wiley(link, driver)
                 else:
                     data = parse_taylor(link, driver)
-
                 df = pd.concat(
                     [df, pd.DataFrame(data, index=[0])], ignore_index=True
                 )
-
             except Exception as e:
                 # print the exception
                 print(e)
                 continue
         start = start + 10
+        break
 
     df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, columns=columns)
 
