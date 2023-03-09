@@ -533,7 +533,7 @@ def main():
 
     def crawl_by_links():
         # data for the table
-        columns = ['title', 'authors', 'corr author', 'inst1', 'inst2',
+        columns = ['title', 'first author', 'corr author', 'inst1', 'inst2',
                     'inst3', 'inst4', 'inst5', 'kw1', 'kw2', 'kw3', 'kw4', 'kw5']
         df = pd.DataFrame(columns=columns)
 
