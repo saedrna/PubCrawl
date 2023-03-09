@@ -1,0 +1,6 @@
+.idea/
+.profile
+.vscode
+
+*.csv
+*.zip
