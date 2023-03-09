@@ -35,11 +35,11 @@ def format_author_name(name: str) -> str:
     return f'{last_name.upper()}, {first_name}'
 
 
-def parse_taylor(url: str, driver: webdriver.Edge) -> dict:
+def parse_taylor(link: str, driver: webdriver.Edge) -> dict:
     """parse the taylor page
 
     Args:
-        url (str): the url of the page
+        link (str): the url of the page
         driver (webdriver.Edge): the web driver
 
     Returns:
@@ -61,7 +61,7 @@ def parse_taylor(url: str, driver: webdriver.Edge) -> dict:
             }
 
     # probably not from the corresponding journal
-    if not link.startswith("https://www.tandfonline.com/doi/full/"):
+    if not link.startswith("https://www.tandfonline.com/doi/"):
         return data
 
     driver.get(link)
@@ -76,7 +76,7 @@ def parse_taylor(url: str, driver: webdriver.Edge) -> dict:
         'span', {'class': 'NLM_article-title hlFld-title'}).text
 
     # authors is under a span tag with class="NLM_contrib-group"
-    authors = article_soup.find_all('span', {'class': 'NLM_contrib-group'})
+    authors = article_soup.find('span', {'class': 'NLM_contrib-group'})
 
     # first author is the first one with contribDegrees
     first_author = authors.find('a', {'class': 'author'}).text
@@ -96,10 +96,13 @@ def parse_taylor(url: str, driver: webdriver.Edge) -> dict:
     institutions = []
     for author in authors.find_all('span', {'class': 'contribDegrees'}):
         entry = author.find('div', {'class': 'entryAuthor'})
-        institution_str = entry.find('span', {'class': 'overlay'}).text
+        entry = entry.find('span', {'class': 'overlay'})
+        # get the institution string, the text of the first child
+        institution_str = entry.contents[0]
+
         # split the string with ';'
         institution_list = institution_str.split(';')
-
+    
         for institution in institution_list:
             # trim the first two letters if the starts with prefix 'a ', 'b ', 'c ', 'd ' etc.
             if institution.startswith('a '):
@@ -113,7 +116,12 @@ def parse_taylor(url: str, driver: webdriver.Edge) -> dict:
             elif institution.startswith('e '):
                 institution = institution[2:]
 
-            institutions.append(institution)
+            institutions.append(institution.strip())
+
+    # make the institutions unique, do not change the order
+    unique_institutions = list(set(institutions))
+    unique_institutions.sort(key=institutions.index)
+    institutions = unique_institutions
 
     # keep at most five institutions, if smaller, fill with empty string
     if len(institutions) > 5:
@@ -125,7 +133,7 @@ def parse_taylor(url: str, driver: webdriver.Edge) -> dict:
     kws = []
     keywords = article_soup.find_all('a', {'class': 'kwd-btn keyword-click'})
     for keyword in keywords:
-        kws.append[keyword.text]
+        kws.append(keyword.text)
 
     # keep at most five keywords, if smaller, fill with empty string
     if len(kws) > 5:
