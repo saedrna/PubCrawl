@@ -430,6 +430,8 @@ def parse_wiley(link: str, driver: webdriver.Edge) -> dict:
     return data
 
 
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-j', '--journal', type=str, help='Journal name')
@@ -441,6 +443,7 @@ def main():
                         help='Output file name', default='output.csv')
     parser.add_argument('-p', '--publisher', type=str,
                         help='Publisher support in elsevier, taylor, springer, wiley', default='taylor')
+    parser.add_argument('-l', '--link', type=str, help='A file contains links to the articles', default='')
 
     args = parser.parse_args()
     journal = args.journal
@@ -448,6 +451,7 @@ def main():
     end_year = args.end
     output = args.output
     publisher = args.publisher
+    link_file = args.link
 
     # replace the space with '+'
     journal = journal.replace(' ', '+')
@@ -465,61 +469,106 @@ def main():
 
     driver = webdriver.Edge(service=EdgeService(driver_path), options=options)
 
-    # start from the first page, each page has 10 items
-    start = 0
+    def crawl_by_scholar():
+        # start from the first page, each page has 10 items
+        start = 0
 
-    # data for the table
-    columns = ['title', 'first author', 'corr author', 'inst1', 'inst2',
-               'inst3', 'inst4', 'inst5', 'kw1', 'kw2', 'kw3', 'kw4', 'kw5']
-    df = pd.DataFrame(columns=columns)
+        # data for the table
+        columns = ['title', 'first author', 'corr author', 'inst1', 'inst2',
+                'inst3', 'inst4', 'inst5', 'kw1', 'kw2', 'kw3', 'kw4', 'kw5']
+        df = pd.DataFrame(columns=columns)
 
-    # wait for crawlling all the data
-    while True:
-        time.sleep(random.uniform(1, 5))
-        # each google page has 10 items
-        url = f'https://scholar.google.com/scholar?start={start}&q=source:"{journal}"&as_ylo={start_year}&as_yhi={end_year}'
-        driver.get(url)
+        # wait for crawlling all the data
+        while True:
+            time.sleep(random.uniform(1, 5))
+            # each google page has 10 items
+            url = f'https://scholar.google.com/scholar?start={start}&q=source:"{journal}"&as_ylo={start_year}&as_yhi={end_year}'
+            driver.get(url)
 
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-        # Find all the links
-        search_results = soup.find_all('div', class_='gs_r gs_or gs_scl')
-        if len(search_results) == 0:
-            print(f'Finishing...')
-            break
+            # Find all the links
+            search_results = soup.find_all('div', class_='gs_r gs_or gs_scl')
+            if len(search_results) == 0:
+                print(f'Finishing...')
+                break
 
-        # use the href to open the elsevier pages
-        print(f'Start crawling {start} to {start + 10}')
-        print(f'\tCrawled {len(df)} items')
-        for result in search_results:
-            try:
-                time.sleep(random.uniform(1, 5))
+            # use the href to open the elsevier pages
+            print(f'Start crawling {start} to {start + 10}')
+            print(f'\tCrawled {len(df)} items')
+            for result in search_results:
+                try:
+                    time.sleep(random.uniform(1, 5))
 
-                link = result.select_one(".gs_rt a")["href"]
+                    link = result.select_one(".gs_rt a")["href"]
 
-                if publisher == 'elsevier':
-                    data = parse_elsevier(link, driver)
-                elif publisher == 'springer':
-                    data = parse_springer(link, driver)
-                elif publisher == 'wiley':
-                    data = parse_wiley(link, driver)
-                else:
-                    data = parse_taylor(link, driver)
+                    if publisher == 'elsevier':
+                        data = parse_elsevier(link, driver)
+                    elif publisher == 'springer':
+                        data = parse_springer(link, driver)
+                    elif publisher == 'wiley':
+                        data = parse_wiley(link, driver)
+                    else:
+                        data = parse_taylor(link, driver)
 
-                if data['title'] == '':
+                    if data['title'] == '':
+                        continue
+
+                    df = pd.concat(
+                        [df, pd.DataFrame(data, index=[0])], ignore_index=True
+                    )
+
+                except Exception as e:
+                    # print the exception
+                    print(e)
+                    continue
+            start = start + 10
+
+            df = pd.concat(
+                [df, pd.DataFrame(data, index=[0])], ignore_index=True
+            )
+            
+        df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, columns=columns)
+
+    def crawl_by_links():
+        # data for the table
+        columns = ['title', 'authors', 'comm_author', 'inst1', 'inst2',
+                'inst3', 'inst4', 'inst5', 'kw1', 'kw2', 'kw3', 'kw4', 'kw5']
+        df = pd.DataFrame(columns=columns)
+
+        with open(link_file, 'r') as f:
+            for link in f.readlines():
+                try:
+                    time.sleep(random.uniform(1, 5))
+
+                    if publisher == 'elsevier':
+                        data = parse_elsevier(link, driver)
+                    elif publisher == 'springer':
+                        data = parse_springer(link, driver)
+                    elif publisher == 'wiley':
+                        data = parse_wiley(link, driver)
+                    else:
+                        data = parse_taylor(link, driver)
+
+                    if data['title'] == '':
+                        continue
+
+                    df = pd.concat(
+                        [df, pd.DataFrame(data, index=[0])], ignore_index=True
+                    )
+
+                except Exception as e:
+                    # print the exception
+                    print(e)
                     continue
 
-                df = pd.concat(
-                    [df, pd.DataFrame(data, index=[0])], ignore_index=True
-                )
-            except Exception as e:
-                # print the exception
-                print(e)
-                continue
-        start = start + 10
-        break
-
-    df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, columns=columns)
+        df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, columns=columns)
+    
+    if link_file == '':
+        crawl_by_scholar()
+    else:
+        crawl_by_links()
+    
 
 if __name__ == '__main__':
     main()
