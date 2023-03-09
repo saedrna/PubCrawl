@@ -6,7 +6,7 @@
 conda env create -n [name]
 conda activate [name]
 conda install python -c conda-forge
-pip install bs4, selenium, pandas
+pip install bs4 selenium pandas
 ```
 
 ## 使用方法
