@@ -264,8 +264,103 @@ def parse_springer(url: str, driver: webdriver.Edge) -> dict:
     pass
 
 
-def parse_wiley(url: str, driver: webdriver.Edge) -> dict:
-    pass
+def parse_wiley(link: str, driver: webdriver.Edge) -> dict:
+    """
+    parse the elsevier page
+
+    Args:
+        link (str): the url of the page
+        driver (webdriver.Edge): the web driver
+
+    Returns:
+        dict: the data    
+    """
+    # TODO: Wiley 有反爬虫机制，还没测试成功
+
+    # initialize the data
+    data = {'title': '',
+            'first author': '',
+            'corr author': '',
+            'inst1': '',
+            'inst2': '',
+            'inst3': '',
+            'inst4': '',
+            'inst5': '',
+            'kw1': '',
+            'kw2': '',
+            'kw3': '',
+            'kw4': '',
+            'kw5': ''
+            }
+
+    # probably not from the corresponding journal
+    if "wiley.com" not in link:
+        return data
+
+    driver.get(link)
+
+    time.sleep(0.5)
+
+    # get the page sources
+    article_soup = BeautifulSoup(driver.page_source, "html.parser")
+
+    # get the title
+    title = article_soup.find('h1', {'class': 'citation__title'}).text
+
+    # authors and inistitutions
+    authors = article_soup.find('div', {'class': 'desktop-authors'})
+    first_author = ''
+    corresponding_author = ''
+    
+    # processing affiliations from author info
+    affiliations = []
+    authors_infos = authors.find_all('div', {'class': 'author-info'})
+    for i, author_info in enumerate(authors_infos) :
+        author_type = author_info.find('p', {'class': 'author-type'})
+        author_name = author_info.find('p', {'class': 'author-name'}).text
+        author_name = format_author_name(author_name)
+        if author_type is not None and author_type.text.lower() == 'corresponding author':
+            corresponding_author = author_name
+        if i == 0:
+            first_author = author_name
+        
+        for content in author_info.contents:
+            if content.name != 'p':
+                continue
+            if 'class' in content.attrs:
+                continue
+            content_text = content.text
+            if 'Correspondence to:' in content_text:
+                break
+            if 'Contribution' in content_text:
+                break
+            affiliations.append(content_text)
+    # unique and sort affiliations
+    unique_affiliations = list(set(affiliations))
+    unique_affiliations.sort(key=affiliations.index)
+    affiliations = unique_affiliations
+
+    if len(affiliations) > 5:
+        affiliations = affiliations[:5]
+    else:
+        affiliations += [''] * (5 - len(affiliations))
+   
+
+    # fill the data
+    data['title'] = title
+    data['first author'] = first_author
+    data['corr author'] = corresponding_author
+    data['inst1'] = affiliations[0]
+    data['inst2'] = affiliations[1]
+    data['inst3'] = affiliations[2]
+    data['inst4'] = affiliations[3]
+    data['inst5'] = affiliations[4]
+    data['kw1'] = kws[0]
+    data['kw2'] = kws[1]
+    data['kw3'] = kws[2]
+    data['kw4'] = kws[3]
+    data['kw5'] = kws[4]
+    return data
 
 
 def main():
@@ -343,6 +438,9 @@ def main():
                     data = parse_wiley(link, driver)
                 else:
                     data = parse_taylor(link, driver)
+
+                if data['title'] == '':
+                    continue
 
                 df = pd.concat(
                     [df, pd.DataFrame(data, index=[0])], ignore_index=True
