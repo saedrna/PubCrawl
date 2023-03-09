@@ -192,11 +192,11 @@ def parse_elsevier(link: str, driver: webdriver.Edge) -> dict:
 
     driver.get(link)
 
-    time.sleep(0.5)
-
     # find the element with id "show-more-btn" and click on it to expand the information
     button = driver.find_element("id", "show-more-btn")
     button.click()
+
+    time.sleep(0.5)
 
     # get the page sources
     article_soup = BeautifulSoup(driver.page_source, "html.parser")
@@ -454,7 +454,8 @@ def main():
     link_file = args.link
 
     # replace the space with '+'
-    journal = journal.replace(' ', '+')
+    if journal:
+        journal = journal.replace(' ', '+')
 
     # get directory for current py file
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -538,9 +539,10 @@ def main():
 
         with open(link_file, 'r') as f:
             for link in f.readlines():
+                link = link.strip()
+                # remove ""
+                link = link[1:-1]
                 try:
-                    time.sleep(random.uniform(1, 5))
-
                     if publisher == 'elsevier':
                         data = parse_elsevier(link, driver)
                     elif publisher == 'springer':
