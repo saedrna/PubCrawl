@@ -124,8 +124,8 @@ def parse_taylor(url: str, driver: webdriver.Edge) -> dict:
     # get the keywords
     kws = []
     keywords = article_soup.find_all('a', {'class': 'kwd-btn keyword-click'})
-    for keword in keywords:
-        kws.append[keword.text]
+    for keyword in keywords:
+        kws.append[keyword.text]
 
     # keep at most five keywords, if smaller, fill with empty string
     if len(kws) > 5:
@@ -226,9 +226,9 @@ def parse_elsevier(link: str, driver: webdriver.Edge) -> dict:
     kws = []
     keywords = article_soup.find_all('div', {'class': 'keyword'})
     if keywords is not None:
-        for keword in keywords:
+        for keyword in keywords:
             keyword = keyword.find('span').text
-            kws.append(keword.text)
+            kws.append(keyword)
     if len(kws) > 5:
         kws = kws[:5]
     else:
@@ -248,6 +248,7 @@ def parse_elsevier(link: str, driver: webdriver.Edge) -> dict:
     data['kw3'] = kws[2]
     data['kw4'] = kws[3]
     data['kw5'] = kws[4]
+    return data
 
 
 def parse_springer(url: str, driver: webdriver.Edge) -> dict:
