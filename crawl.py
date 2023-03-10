@@ -470,7 +470,7 @@ def parse_wos(link: str, driver: webdriver.Edge) -> dict:
     driver.get(link)
     driver.find_element('id', 'FullRTa-fullRecordtitle-0')
 
-    time.sleep(random.uniform(1,5))
+    #time.sleep(random.uniform(1,5))
 
     # get the page sources
     article_soup = BeautifulSoup(driver.page_source, "html.parser")
@@ -680,7 +680,7 @@ def main():
                     )
                     if (len(df) % 100 == 0):
                         print(f'\tCrawled {len(df)} items')
-                        time.sleep(random.uniform(60, 120))
+                        #time.sleep(random.uniform(60, 120))
 
                 except Exception as e:
                     # print the exception
