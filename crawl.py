@@ -470,7 +470,7 @@ def parse_wos(link: str, driver: webdriver.Edge) -> dict:
     driver.get(link)
     driver.find_element('id', 'FullRTa-fullRecordtitle-0')
 
-    # time.sleep(1)
+    time.sleep(random.uniform(1,5))
 
     # get the page sources
     article_soup = BeautifulSoup(driver.page_source, "html.parser")
@@ -669,10 +669,18 @@ def main():
 
                     if data['title'] == '':
                         continue
+                    
+                    # append the dict to the output file
+                    with open(output, 'a', newline='') as csvfile:
+                        writer = csv.DictWriter(csvfile, fieldnames=columns)
+                        writer.writerow(data)
 
                     df = pd.concat(
                         [df, pd.DataFrame(data, index=[0])], ignore_index=True
                     )
+                    if (len(df) % 100 == 0):
+                        print(f'\tCrawled {len(df)} items')
+                        time.sleep(random.uniform(60, 120))
 
                 except Exception as e:
                     # print the exception

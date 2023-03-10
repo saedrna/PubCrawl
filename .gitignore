@@ -6,3 +6,7 @@
 *.zip
 
 __pycache__/
+
+*.xls
+
+*.xlsx
